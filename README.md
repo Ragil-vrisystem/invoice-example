@@ -87,6 +87,9 @@ fixture index lives at `invoice-example-liard.vercel.app` (fixtures also reachab
 via `?__host=`); raw deployment URLs stay behind Vercel SSO by design. Note
 `invoice-example.vercel.app` (no suffix) is an unrelated third-party site.
 
+**`LINKS.md`** is the exhaustive URL catalog — every host, every parameter variant, and every
+obstruction combination (351 links), in both production and local form.
+
 See **`DEPLOYMENT.md`** for how the domains are wired, how to re-register one, and the
 post-deploy verification loop. Do not use `vercel alias set` for these hosts — it pins them
 to a single deployment.
