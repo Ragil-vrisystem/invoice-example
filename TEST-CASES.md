@@ -14,7 +14,7 @@
 
 | Environment | Base | Notes |
 |---|---|---|
-| **Production (Vercel)** | `https://inv2-<name>.vercel.app` | One alias per host (detection by domain). Requires the project's *Deployment Protection → Vercel Authentication* to be **Disabled**; until then these redirect to Vercel SSO. Public project domain: `invoice-example-liard.vercel.app` (index; fixtures reachable via `?__host=`). `invoice-example.vercel.app` (no suffix) is an **unrelated third-party site** — never use it. |
+| **Production (Vercel)** | `https://inv2-<name>.vercel.app` | One project domain per host (detection by domain), all answering anonymously and following the newest production deployment. Fixture index: `invoice-example-liard.vercel.app` (fixtures also reachable via `?__host=`). Raw deployment URLs stay behind Vercel SSO by design. `invoice-example.vercel.app` (no suffix) is an **unrelated third-party site** — never use it. See `DEPLOYMENT.md`. |
 | **Local** | `http://localhost:3000` | `npm run dev`. Use `?__host=inv2-<name>` (always wins) or browser-friendly `http://inv2-<name>.localhost:3000/`. |
 
 Every response on every host/path carries `x-sim-fixture` + `x-sim-pattern-type` (and
@@ -209,5 +209,7 @@ curl -s -b /tmp/otp -c /tmp/otp -X POST -H "Content-Type: application/json" \
    to Japanese production platforms matters.
 6. **Lockouts/cooldowns are cookie-scoped** — run each case in a fresh browser context, or
    earlier cases (LPW-03, OTP-03) will contaminate later ones.
-7. Vercel aliases point at a specific deployment — after a new `vercel deploy --prod`,
-   re-point all 8 (`vercel alias set <new-url> inv2-<name>.vercel.app`, loop in README §Deployed hosts).
+7. The 8 hosts are **project domains**, so they follow the newest production deployment
+   automatically — no re-pointing needed after a deploy. Verify with the loop in
+   `DEPLOYMENT.md` §Verifying after a deploy; a `302` to `vercel.com/sso-api` means that
+   host lost its project-domain registration. Never use `vercel alias set` for these hosts.

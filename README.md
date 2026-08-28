@@ -75,27 +75,21 @@ subdomain-style host (`inv2-direct.localhost`, `inv2-direct.vercel.app`, `inv2-d
 
 ## Deployed hosts (Vercel)
 
-Deployed 2026-08-28 as project `hamasmart/invoice-example`. Each pattern has its own
-`.vercel.app` alias so an automation can detect platforms by hostname:
+Live as project `hamasmart/invoice-example`. Each pattern has its own subdomain, registered
+as a **project domain**, so an automation can detect the platform shape from the hostname:
 
 `inv2-direct.vercel.app` · `inv2-direct-url.vercel.app` · `inv2-email-gated.vercel.app` ·
 `inv2-login.vercel.app` · `inv2-login-pw.vercel.app` · `inv2-email-otp.vercel.app` ·
 `inv2-email-otp-trigger.vercel.app` · `inv2-about-blank.vercel.app`
 
-Public project domain (index page; fixtures reachable via `?__host=`):
-`invoice-example-liard.vercel.app`. Note `invoice-example.vercel.app` (no suffix) is an
-unrelated third-party site.
+All 8 answer anonymously and follow the newest production deployment automatically. The
+fixture index lives at `invoice-example-liard.vercel.app` (fixtures also reachable from it
+via `?__host=`); raw deployment URLs stay behind Vercel SSO by design. Note
+`invoice-example.vercel.app` (no suffix) is an unrelated third-party site.
 
-The `inv2-*` aliases require the project's **Deployment Protection → Vercel Authentication**
-setting to be _Disabled_ (dashboard-only toggle); until then they redirect to Vercel SSO.
-Aliases point at a specific deployment — after a new `vercel deploy --prod`, re-point them:
-
-```bash
-for h in inv2-direct inv2-direct-url inv2-email-gated inv2-login inv2-login-pw \
-         inv2-email-otp inv2-email-otp-trigger inv2-about-blank; do
-  vercel alias set <new-deployment-url> "$h.vercel.app"
-done
-```
+See **`DEPLOYMENT.md`** for how the domains are wired, how to re-register one, and the
+post-deploy verification loop. Do not use `vercel alias set` for these hosts — it pins them
+to a single deployment.
 
 Register hosts in the **dev** registry only (fill `example_url` at registration); never
 register `inv2-about-blank`, and never fire fixtures at prod.
