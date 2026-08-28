@@ -4,6 +4,7 @@ import { useState } from "react";
 import { pickParams, type SP } from "@/lib/searchParams";
 import { page, card, heading, label, input, button, errorText, dryRunBox, muted } from "./styles";
 import PopupOverlay, { resolvePopupMode } from "./PopupOverlay";
+import { parseObstructions, Obstructions, useObstructionGate } from "./Obstructions";
 import LangSwitcher from "./LangSwitcher";
 import { t, type Lang } from "@/lib/i18n";
 
@@ -39,6 +40,8 @@ export default function EmailOtpTriggerPage({ fixtureId, searchParams, lang }: P
   const [submitting, setSubmitting] = useState(false);
 
   const popupMode = resolvePopupMode(searchParams);
+  const obstructions = parseObstructions(searchParams);
+  const { onActionClick } = useObstructionGate(obstructions, lang);
   const verifyQs = pickParams(searchParams, ["wrongpin", "expired"]);
   const downloadQs = pickParams(searchParams, ["__host", "empty", "http500", "htmlfile", "jsonerr", "slow"]);
 
@@ -107,10 +110,19 @@ export default function EmailOtpTriggerPage({ fixtureId, searchParams, lang }: P
         {popupMode.show && (
           <PopupOverlay dismissible={popupMode.dismissible} message={dict.popup.cookieMessage} lang={lang} />
         )}
+        <Obstructions set={obstructions} lang={lang} />
         {!verified && !triggered && (
           <>
             <p style={muted}>{dict.emailOtpTrigger.intro}</p>
-            <button id="send-code" type="button" onClick={onSendCode} disabled={sending} style={button}>
+            <button
+              id="send-code"
+              type="button"
+              onClick={(e) => {
+                if (onActionClick(e)) onSendCode();
+              }}
+              disabled={sending}
+              style={button}
+            >
               {sending ? dict.emailOtpTrigger.sending : dict.emailOtpTrigger.sendCode}
             </button>
             {error && <p style={errorText}>{error}</p>}
@@ -143,7 +155,7 @@ export default function EmailOtpTriggerPage({ fixtureId, searchParams, lang }: P
                 style={input}
                 placeholder="123456"
               />
-              <button id="otp-submit" type="submit" disabled={submitting} style={button}>
+              <button id="otp-submit" type="submit" disabled={submitting} onClick={onActionClick} style={button}>
                 {submitting ? dict.emailOtp.verifying : dict.emailOtp.verify}
               </button>
             </form>

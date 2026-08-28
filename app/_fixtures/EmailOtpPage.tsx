@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { pickParams, type SP } from "@/lib/searchParams";
 import { page, card, heading, label, input, button, buttonSecondary, errorText, dryRunBox, muted } from "./styles";
 import PopupOverlay, { resolvePopupMode } from "./PopupOverlay";
+import { parseObstructions, Obstructions, useObstructionGate } from "./Obstructions";
 import LangSwitcher from "./LangSwitcher";
 import { t, type Lang } from "@/lib/i18n";
 
@@ -35,6 +36,8 @@ export default function EmailOtpPage({ fixtureId, searchParams, lang }: Props) {
   const sentOnce = useRef(false);
 
   const popupMode = resolvePopupMode(searchParams);
+  const obstructions = parseObstructions(searchParams);
+  const { onActionClick } = useObstructionGate(obstructions, lang);
   const verifyQs = pickParams(searchParams, ["wrongpin", "expired"]);
   const downloadQs = pickParams(searchParams, ["__host", "empty", "http500", "htmlfile", "jsonerr", "slow"]);
 
@@ -119,6 +122,7 @@ export default function EmailOtpPage({ fixtureId, searchParams, lang }: Props) {
         {popupMode.show && (
           <PopupOverlay dismissible={popupMode.dismissible} message={dict.popup.securityMessage} lang={lang} />
         )}
+        <Obstructions set={obstructions} lang={lang} />
         {!verified && (
           <>
             {sent ? (
@@ -150,7 +154,7 @@ export default function EmailOtpPage({ fixtureId, searchParams, lang }: Props) {
                 placeholder="123456"
               />
               {/* Deliberately no id — reachable only via button[type="submit"] */}
-              <button type="submit" disabled={submitting} style={button}>
+              <button type="submit" disabled={submitting} onClick={onActionClick} style={button}>
                 {submitting ? dict.emailOtp.verifying : dict.emailOtp.verify}
               </button>
             </form>

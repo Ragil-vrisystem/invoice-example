@@ -117,6 +117,22 @@ export interface Dictionary {
     cookieMessage: string;
     securityMessage: string;
   };
+  obstruct: {
+    cookieBannerMessage: string;
+    cookieAccept: string;
+    toastMessage: string;
+    toastStickyMessage: string;
+    toastStickyClose: string;
+    chatWidgetTitle: string;
+    chatWidgetClose: string;
+    stickyHeaderTitle: string;
+    spinnerMessage: string;
+    delayedModalMessage: string;
+    delayedModalClose: string;
+    alertMessage: string;
+    promptMessage: string;
+    confirmMessage: string;
+  };
   tokenPage: {
     invalidTitle: string;
     invalidBody: string;
@@ -221,6 +237,22 @@ const en: Dictionary = {
     cookieMessage: "This site uses cookies",
     securityMessage: "Security verification required",
   },
+  obstruct: {
+    cookieBannerMessage: "This site uses cookies to improve your experience.",
+    cookieAccept: "Accept",
+    toastMessage: "Your session was refreshed.",
+    toastStickyMessage: "New updates are available.",
+    toastStickyClose: "Dismiss",
+    chatWidgetTitle: "Chat with us",
+    chatWidgetClose: "Close chat",
+    stickyHeaderTitle: "Example Portal",
+    spinnerMessage: "Loading…",
+    delayedModalMessage: "A security check is required.",
+    delayedModalClose: "Close",
+    alertMessage: "This is a simulated alert dialog.",
+    promptMessage: "Please enter a value:",
+    confirmMessage: "Are you sure you want to continue?",
+  },
   tokenPage: {
     invalidTitle: "Invalid link",
     invalidBody: "This link is not a valid invoice link.",
@@ -324,6 +356,22 @@ const ja: Dictionary = {
     close: "閉じる",
     cookieMessage: "このサイトはCookieを使用しています",
     securityMessage: "セキュリティ確認が必要です",
+  },
+  obstruct: {
+    cookieBannerMessage: "このサイトはCookieを使用して体験を向上させています。",
+    cookieAccept: "同意する",
+    toastMessage: "セッションを更新しました。",
+    toastStickyMessage: "新しい更新があります。",
+    toastStickyClose: "閉じる",
+    chatWidgetTitle: "チャットでお問い合わせ",
+    chatWidgetClose: "チャットを閉じる",
+    stickyHeaderTitle: "サンプルポータル",
+    spinnerMessage: "読み込み中…",
+    delayedModalMessage: "セキュリティチェックが必要です。",
+    delayedModalClose: "閉じる",
+    alertMessage: "これはシミュレートされたアラートダイアログです。",
+    promptMessage: "値を入力してください：",
+    confirmMessage: "続行してもよろしいですか？",
   },
   tokenPage: {
     invalidTitle: "無効なリンクです",

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { pickParams, type SP } from "@/lib/searchParams";
 import { page, card, heading, label, input, button, errorText, dryRunBox, muted } from "./styles";
 import PopupOverlay, { resolvePopupMode } from "./PopupOverlay";
+import { parseObstructions, Obstructions, useObstructionGate } from "./Obstructions";
 import LangSwitcher from "./LangSwitcher";
 import { t, type Lang } from "@/lib/i18n";
 
@@ -37,6 +38,8 @@ export default function EmailGatedPage({ fixtureId, searchParams, lang }: Props)
   const [error, setError] = useState<string | null>(null);
 
   const popupMode = resolvePopupMode(searchParams);
+  const obstructions = parseObstructions(searchParams);
+  const { onActionClick } = useObstructionGate(obstructions, lang);
   const qs = pickParams(searchParams, ["variant", "wrongpin", "expired"]);
   const downloadHref = `/api/invoice.pdf${pickParams(searchParams, ["__host"]) ? `?${pickParams(searchParams, ["__host"])}` : ""}`;
 
@@ -75,6 +78,7 @@ export default function EmailGatedPage({ fixtureId, searchParams, lang }: Props)
         {popupMode.show && (
           <PopupOverlay dismissible={popupMode.dismissible} message={dict.popup.cookieMessage} lang={lang} />
         )}
+        <Obstructions set={obstructions} lang={lang} />
         <form onSubmit={onSubmit}>
           <label htmlFor="gate-email" style={label}>
             {dict.emailGated.emailLabel}
@@ -88,7 +92,7 @@ export default function EmailGatedPage({ fixtureId, searchParams, lang }: Props)
             style={input}
             placeholder="you@example.test"
           />
-          <button id="gate-submit" type="submit" disabled={submitting} style={button}>
+          <button id="gate-submit" type="submit" disabled={submitting} onClick={onActionClick} style={button}>
             {submitting ? dict.emailGated.verifying : dict.emailGated.verify}
           </button>
         </form>

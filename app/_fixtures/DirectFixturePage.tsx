@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { spGet, spFlag, spHas, pickParams, type SP } from "@/lib/searchParams";
 import { page, card, heading, row, muted } from "./styles";
 import PopupOverlay, { resolvePopupMode } from "./PopupOverlay";
+import { parseObstructions, Obstructions, useObstructionGate } from "./Obstructions";
 import LangSwitcher from "./LangSwitcher";
 import { t, formatEndOfMonth, formatYen, type Lang } from "@/lib/i18n";
 
@@ -22,6 +23,8 @@ import { t, formatEndOfMonth, formatYen, type Lang } from "@/lib/i18n";
  *   ?slow=S      -> button renders only after S (<=120) seconds
  *   ?expired=1   -> expired page, no button at all
  *   ?lang=en|ja  -> UI language (default en)
+ *   ?obstruct=   -> composable UI-obstruction fixtures (cookie banners, toasts,
+ *                   native dialogs, etc.) — see Obstructions.tsx / README.md
  */
 
 const DOWNLOAD_FORWARD_KEYS = ["empty", "http500", "htmlfile", "jsonerr", "n", "ym", "__host"];
@@ -46,6 +49,8 @@ export default function DirectFixturePage({ fixtureId, searchParams, token, lang
   const dict = t(lang);
   const expired = spFlag(searchParams, "expired");
   const popupMode = resolvePopupMode(searchParams);
+  const obstructions = parseObstructions(searchParams);
+  const { onActionClick } = useObstructionGate(obstructions, lang);
   const selectorV2 = spGet(searchParams, "selector") === "v2";
   const multiParam = spGet(searchParams, "multi");
   const multiN = multiParam ? Math.max(1, Math.min(10, Number(multiParam) || 1)) : 0;
@@ -109,6 +114,7 @@ export default function DirectFixturePage({ fixtureId, searchParams, token, lang
                     key={i}
                     id={`download-invoice-${i}`}
                     href={buildDownloadHref(searchParams, i)}
+                    onClick={onActionClick}
                     style={{ color: "#2857c8", fontWeight: 600 }}
                   >
                     {dict.direct.downloadInvoiceNamed(invNo(i))}
@@ -118,7 +124,12 @@ export default function DirectFixturePage({ fixtureId, searchParams, token, lang
             )}
 
             {buttonVisible && multiN === 0 && selectorV2 && (
-              <a className="dl-link-v2" href={buildDownloadHref(searchParams)} style={{ color: "#2857c8", fontWeight: 600 }}>
+              <a
+                className="dl-link-v2"
+                href={buildDownloadHref(searchParams)}
+                onClick={onActionClick}
+                style={{ color: "#2857c8", fontWeight: 600 }}
+              >
                 {dict.common.downloadInvoice}
               </a>
             )}
@@ -127,6 +138,7 @@ export default function DirectFixturePage({ fixtureId, searchParams, token, lang
               <a
                 id="download-invoice"
                 href={buildDownloadHref(searchParams)}
+                onClick={onActionClick}
                 style={{ color: "#2857c8", fontWeight: 600 }}
               >
                 {dict.common.downloadInvoice}
@@ -135,6 +147,7 @@ export default function DirectFixturePage({ fixtureId, searchParams, token, lang
           </div>
 
           {popupMode.show && <PopupOverlay dismissible={popupMode.dismissible} lang={lang} />}
+          <Obstructions set={obstructions} lang={lang} />
         </div>
       )}
     </main>

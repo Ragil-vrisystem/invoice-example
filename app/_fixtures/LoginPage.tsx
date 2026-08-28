@@ -4,6 +4,7 @@ import { useState } from "react";
 import { pickParams, type SP } from "@/lib/searchParams";
 import { page, card, heading, label, input, button, errorText, muted, row } from "./styles";
 import PopupOverlay, { resolvePopupMode } from "./PopupOverlay";
+import { parseObstructions, Obstructions, useObstructionGate } from "./Obstructions";
 import LangSwitcher from "./LangSwitcher";
 import { t, formatMonthLabel, type Lang } from "@/lib/i18n";
 
@@ -48,6 +49,8 @@ export default function LoginPage({ fixtureId, searchParams, lang }: Props) {
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const popupMode = resolvePopupMode(searchParams);
+  const obstructions = parseObstructions(searchParams);
+  const { onActionClick } = useObstructionGate(obstructions, lang);
   const loginQs = pickParams(searchParams, ["wrongpin"]);
   const downloadQsBase = pickParams(searchParams, ["relogin", "__host", "empty", "http500", "htmlfile", "jsonerr", "slow"]);
 
@@ -107,6 +110,7 @@ export default function LoginPage({ fixtureId, searchParams, lang }: Props) {
         {popupMode.show && (
           <PopupOverlay dismissible={popupMode.dismissible} message={dict.popup.cookieMessage} lang={lang} />
         )}
+        <Obstructions set={obstructions} lang={lang} />
         {!loggedIn && (
           <>
             <form onSubmit={onSubmit}>
@@ -133,7 +137,7 @@ export default function LoginPage({ fixtureId, searchParams, lang }: Props) {
                 onChange={(e) => setPassword(e.target.value)}
                 style={input}
               />
-              <button id="login-submit" type="submit" disabled={submitting} style={button}>
+              <button id="login-submit" type="submit" disabled={submitting} onClick={onActionClick} style={button}>
                 {submitting ? dict.login.loggingIn : dict.login.login}
               </button>
             </form>

@@ -47,6 +47,7 @@ These compose with everything below.
 |---|---|---|
 | `?lang=` | `en` (default) / `ja` | Switches all UI text; sticky via `sim_lang` cookie; `x-sim-lang` header; **all selector ids identical in both languages**; the PDF content is always Japanese. |
 | `?popup=` | *(absent)* / `1` / `2` or `trap` | Absent = no overlay. `1` = **dismissible** modal: `#popup-overlay` blocks the form/button, clicking `#popup-close` hides it and unblocks (positive case — automation must detect, close, proceed). `2`/`trap` = **permanent trap**: `#popup-close` never removes the overlay (negative case — run must fail, not stall). Applies to `inv2-direct` and all 5 auth hosts. ⚠️ Deviation from the v1/reference numbering, where `popup=1` was the blocking case. |
+| `?obstruct=` | comma-separated list of 14 obstruction types, each with an optional `:N` arg (e.g. `spinner:5`) | Composable UI-obstruction fixtures (cookie banners, toasts, native dialogs, invisible overlays, stray windows) — independent of and composable with `?popup=`. Unknown types ignored silently. See §7 below for the full catalog (`OBS-01`..`OBS-14`). Applies to `inv2-direct` and all 5 auth hosts. |
 | `?slow=S` | 0–120 (clamped) | PDF endpoints: response delayed S seconds. `inv2-direct` page: download element renders only after S seconds (client-side). |
 
 ## 4. PDF endpoint failure params
@@ -194,7 +195,44 @@ curl -s -b /tmp/otp -c /tmp/otp -X POST -H "Content-Type: application/json" \
   -d '{"code":"424242"}' "https://inv2-email-otp.vercel.app/api/sim/otp/verify"
 ```
 
-## 7. Caveats & known deviations
+## 7. Obstruction fixture catalog (`?obstruct=`)
+
+`app/_fixtures/Obstructions.tsx`. Applies to `inv2-direct` and all 5 auth hosts, exactly like
+`?popup=` — and composes freely with it (`?popup=1&obstruct=cookie-banner` renders both). Value
+is a comma-separated list of the 14 types below, each with an optional `:N` numeric argument
+(e.g. `?obstruct=spinner:5,delayed-modal:10`); unknown types are ignored silently. With no
+`?obstruct=` at all, no `#obstruct-*` element is ever rendered and no native-dialog/window
+handler is ever registered. Case IDs are stable.
+
+All URLs below use `inv2-direct` for brevity; every case is equally valid on the 5 auth hosts.
+
+| Case | URL | Simulator behavior (verified) | Expected automation outcome |
+|---|---|---|---|
+| OBS-01 cookie-banner | `/?obstruct=cookie-banner` | Fixed bar across the bottom of the viewport (high z-index), genuinely covering the primary action; `#obstruct-cookie-banner` container, `#obstruct-cookie-accept` dismisses it permanently | automation must detect + dismiss the banner before the primary action is reachable; failing to do so → click swallowed / `failed` |
+| OBS-02 toast | `/?obstruct=toast` | `#obstruct-toast` appears top-right, auto-hides after 5s with no close control (verified: element present on initial render) | a timing race, not a permanent block — `stored` if the automation proceeds or waits past 5s; premature interaction with the covered corner may still miss |
+| OBS-03 toast-sticky | `/?obstruct=toast-sticky` | `#obstruct-toast-sticky` positioned over the primary action, never auto-hides; `#obstruct-toast-sticky-close` dismisses it | must detect + close before the action is reachable, else `failed` |
+| OBS-04 chat-widget | `/?obstruct=chat-widget` | Fixed circular bubble in the bottom-right corner, `#obstruct-chat-widget`; `#obstruct-chat-widget-close` dismisses it | corner-covering widget must not be mistaken for the primary action; `stored` once dismissed or avoided |
+| OBS-05 invisible-overlay | `/?obstruct=invisible-overlay` | `#obstruct-invisible-overlay` — fully transparent (`opacity:0`, `background:transparent`) div with a real hit area over the primary action; the action element itself stays visible/enabled in the DOM but clicks land on the overlay and do nothing. Not dismissible | classic "element not clickable at point" / silently-swallowed-click case — a naive coordinate/visibility-only click check reports success while nothing happens → `failed`; automation must verify the actual post-click effect, not just that a click was dispatched |
+| OBS-06 sticky-header | `/?obstruct=sticky-header` | `#obstruct-sticky-header` — tall (~140px) fixed header at the top | a bare `scrollIntoView()` on the target leaves it hidden underneath the header; automation must account for fixed-header offset or the click coordinate lands on the header instead → `failed` if it does |
+| OBS-07 spinner | `/?obstruct=spinner` (never resolves) or `/?obstruct=spinner:5` (resolves after 5s) | `#obstruct-spinner` overlay covers the card; with no `:N` it never disappears, with `:N` it disappears N seconds after mount | bare form: run must time out / `failed` — the action never becomes interactable; `:N` form: `stored` if the automation waits past N seconds, `failed` if it gives up too early |
+| OBS-08 delayed-modal | `/?obstruct=delayed-modal` (or `:N` for a custom delay, default 3s) | `#obstruct-delayed-modal` appears N seconds **after** load — i.e. after the primary action was already located — with `#obstruct-delayed-modal-close` to dismiss it | tests re-detection after the DOM changes post-locate; an automation that clicked immediately at t=0 succeeds, one that re-checks visibility at click time must detect + close first |
+| OBS-09 scroll-lock | `/?obstruct=scroll-lock` | `#obstruct-scroll-lock` spacer inserted, `document.body.style.overflow` set to `hidden` (verified via served JS); the primary action sits below the fold and cannot be scrolled to; cleans up on unmount | naive `scrollIntoView` + click fails silently or clicks the wrong element → `failed`; automation must detect the lock (e.g. via computed style) rather than assume scrolling works |
+| OBS-10 alert | `/?obstruct=alert` | `window.alert(...)` called once on mount (verified: `window.alert(` present in the served JS bundle) | blocks the JS thread until dismissed; a driver without native-dialog auto-handling stalls/times out → `failed`; one with dialog handling must accept it, then proceed normally |
+| OBS-11 confirm | `/?obstruct=confirm` | Clicking the primary action calls `window.confirm(...)` first (verified: `window.confirm(` present in the served JS bundle); dismissing it cancels the action (`preventDefault`, nothing proceeds); accepting it lets the action proceed | negative case (dismiss) → `failed`, no artifact; positive case (accept) → `stored` |
+| OBS-12 prompt | `/?obstruct=prompt` | `window.prompt(...)` called once on mount (verified: `window.prompt(` present in the served JS bundle) | same class as OBS-10 — blocks until handled; unhandled → `failed` |
+| OBS-13 beforeunload | `/?obstruct=beforeunload` | A `beforeunload` handler is registered on mount and removed on unmount (verified: `beforeunload` present in the served JS bundle) | navigating away or triggering the download raises the browser's native "Leave site?" dialog; an automation without dialog-dismiss handling stalls → `failed` |
+| OBS-14 new-window | `/?obstruct=new-window` | Clicking the primary action calls `window.open(...)` on a decoy URL first (verified: `window.open(` present in the served JS bundle), then lets the original action proceed normally in the original tab/page | tests focus-steal / extra-context handling — an automation that follows the new tab instead of the original one loses the primary action → `failed`; one that stays on the original page/tab → `stored` |
+
+**Composability** (not a separate case ID — every case above composes with every other):
+`/?obstruct=cookie-banner,chat-widget,toast` renders all three simultaneously with their own
+stable ids; `/?obstruct=cookie-banner&popup=1` renders the `?popup=` overlay and the obstruction
+independently, both needing separate handling. ⚠️ Curl/static-HTML verification proves the DOM
+elements render and that the handler code (`window.alert(`, `window.confirm(`, `window.prompt(`,
+`beforeunload`, `window.open(`) ships in the served JS — it cannot itself prove the runtime
+dialog-blocking behavior (that a real browser actually pauses on `window.confirm`, etc.); that
+requires a real browser/automation run.
+
+## 8. Caveats & known deviations
 
 1. **Synthetic fixtures** (flag per spec A.6): the `email_gated` page shape and all
    token/expiry/retry semantics have no public real-world specification — a pass here does not

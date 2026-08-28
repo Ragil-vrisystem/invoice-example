@@ -136,6 +136,7 @@ origin via `?__host=` never lets their state collide:
 | Param | Effect |
 |---|---|
 | `?popup=1` / `?popup=2` | obstructing overlay over the download button — see below for the two cases |
+| `?obstruct=` | composable UI-obstruction fixtures (cookie banners, toasts, native dialogs, stray windows, etc.) — see below |
 | `?selector=v2` | the download element becomes `<a class="dl-link-v2">` with **no** `id` |
 | `?multi=N` (≤10) | N buttons, `id="download-invoice-1"` .. `"download-invoice-N"`, each a distinct invoice number |
 | `?slow=S` (≤120) | the download button renders only after S seconds |
@@ -150,6 +151,7 @@ origin via `?__host=` never lets their state collide:
 | `?expired=1` | the code/token/link is treated as already expired |
 | `?relogin=1` | `inv2-login` only — first download OK, second bounces to 401 (session marked used) |
 | `?popup=1` / `?popup=2` | obstructing modal over the credential form — see below for the two cases |
+| `?obstruct=` | composable UI-obstruction fixtures — see below |
 
 ### The `?popup=` obstructing-modal fixture
 
@@ -173,6 +175,48 @@ In every case the overlay is a real full-coverage element (`position: absolute; 
 z-index: 50`) over the card, so it genuinely intercepts clicks on the underlying form until
 handled — it isn't just decorative. `resolvePopupMode()` in `PopupOverlay.tsx` is the single
 place this three-way switch is implemented; every fixture page calls it the same way.
+
+### The `?obstruct=` composable obstruction fixtures
+
+`?obstruct=` is supported on the same six interactive hosts as `?popup=` — `inv2-direct` and
+all five credential hosts — via `app/_fixtures/Obstructions.tsx`. It is independent of, and
+composes freely with, `?popup=`, `?lang=`, and every failure-mode param above. It exists to
+simulate the realistic UI obstacles (modals, native dialogs, toasts, banners, invisible
+overlays, stray windows) that trip up web RPA in the wild, beyond the single obstructing-modal
+shape `?popup=` covers.
+
+Value: a comma-separated list of obstruction types, each with an optional `:N` numeric
+argument, e.g. `?obstruct=cookie-banner,chat-widget,toast` or `?obstruct=spinner:5,delayed-modal:10`.
+**Unknown types are ignored silently** (so the param stays safe to extend/typo against). With no
+`?obstruct=` param at all, no `#obstruct-*` element is ever rendered and no native-dialog/window
+handler is ever registered — this is the default, unobstructed baseline.
+
+Selector convention (exact, automation-facing): container `id="obstruct-<type>"`, dismiss
+control `id="obstruct-<type>-close"` (`-accept` for the cookie banner).
+
+| Type | What it does | Selectors | Dismissible | `:N` arg |
+|---|---|---|---|---|
+| `cookie-banner` | Fixed bar across the bottom of the viewport, high z-index, genuinely covers the primary action (the most common real-world blocker) | `#obstruct-cookie-banner`, accept: `#obstruct-cookie-accept` | Yes | — |
+| `toast` | Notification in the top-right corner | `#obstruct-toast` | Auto-hides after 5s (no close button — a timing race, not a permanent block) | — |
+| `toast-sticky` | Same visual as `toast`, but positioned over the primary action and never auto-hides | `#obstruct-toast-sticky`, close: `#obstruct-toast-sticky-close` | Yes | — |
+| `chat-widget` | Fixed circular bubble in the bottom-right corner | `#obstruct-chat-widget`, close: `#obstruct-chat-widget-close` | Yes | — |
+| `invisible-overlay` | Fully transparent (`opacity:0`/`background:transparent`) div with a real hit area over the primary action; the button stays visible and enabled, but clicks land on the overlay and do nothing ("element not clickable at point" / silently-swallowed-click case) | `#obstruct-invisible-overlay` | No | — |
+| `sticky-header` | Tall (~140px) fixed header at the top; a `scrollIntoView` on the target leaves it hidden underneath | `#obstruct-sticky-header` | No | — |
+| `spinner` | Loading overlay covering the card. Bare `spinner` never resolves; `spinner:N` resolves after N seconds | `#obstruct-spinner` | No (self-resolves only with `:N`) | resolve-after-seconds |
+| `delayed-modal` | A modal appears N seconds **after** load (default 3) — i.e. after an RPA has already located the button | `#obstruct-delayed-modal`, close: `#obstruct-delayed-modal-close` | Yes | delay-seconds (default 3) |
+| `scroll-lock` | Sets `document.body.style.overflow = "hidden"` and inserts a tall spacer so the primary action sits below the fold and cannot be scrolled to (cleans up on unmount) | `#obstruct-scroll-lock` | No | — |
+| `alert` | Calls `window.alert(...)` once on mount | — (native dialog) | N/A | — |
+| `confirm` | Clicking the primary action calls `window.confirm(...)` first; cancelling it cancels the action (`preventDefault`, nothing proceeds) | — (native dialog) | N/A | — |
+| `prompt` | Calls `window.prompt(...)` once on mount | — (native dialog) | N/A | — |
+| `beforeunload` | Registers a `beforeunload` handler so leaving/downloading triggers the browser's "Leave site?" dialog (cleans up on unmount) | — (native dialog) | N/A | — |
+| `new-window` | Clicking the primary action calls `window.open()` on a decoy URL first (focus steal / extra page/context), then lets the original action proceed | — (no DOM footprint) | N/A | — |
+
+Any number of types can be combined in one `?obstruct=` value, and click-time gating
+(`confirm`, `new-window`) stacks with mount-effect types (`alert`, `prompt`) and DOM types in the
+same request — e.g. `?obstruct=cookie-banner,confirm,beforeunload` shows the banner, gates the
+primary action behind a confirm dialog, and arms the leave-site warning, all at once.
+`parseObstructions()` / `<Obstructions>` / `useObstructionGate()` in `Obstructions.tsx` are the
+three pieces every fixture page wires in, alongside (never replacing) `PopupOverlay`.
 
 ## PDF recipe
 
@@ -210,6 +254,9 @@ Filename: `請求書_<YYYYMM>_株式会社サンプル.pdf`, sent via a dual `Co
 - Client fixture pages (`app/_fixtures/*.tsx`, all `"use client"`) drive their own flow via
   `fetch()` to the `app/api/sim/**` routes; the browser sends cookies automatically for
   same-origin requests, so no explicit `credentials` option is needed.
+- `app/_fixtures/Obstructions.tsx` is the shared `?obstruct=` obstruction-fixture system
+  (`parseObstructions()` / `<Obstructions>` / `useObstructionGate()`), wired into the same six
+  interactive hosts as `PopupOverlay`, independently of it.
 - `next-env.d.ts`, and any `AGENTS.md`/`CLAUDE.md` stub Next.js auto-generates on first
   `npm run dev`, are left as-is.
 
